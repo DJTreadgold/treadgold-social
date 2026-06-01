@@ -1,49 +1,47 @@
 """
 Treadgold Finance social post image generator.
 
-Reads posts/current_week.json and outputs branded PNGs (landscape + square)
-per post. Run by .github/workflows/generate-posts.yml or locally:
-    python treadgold_social_template.py
+Reads posts/current_week.json and outputs branded PNGs.
+Downloads Montserrat at runtime; adapts logo for dark backgrounds.
 
-Locked brand layout (memory #5 — do not modify without explicit instruction):
+Brand layout (memory #5):
   - Black background (#0D0D0D)
   - Gold bar top-left (#E8B84B)
-  - Gold rectangle eyebrow (caps text, black on gold)
-  - Grey divider line under eyebrow (#8A8A8A)
-  - Huge all-caps white headline
+  - Gold square + caps gold eyebrow text + thin grey rule
+  - Huge all-caps white headline (Montserrat-Black)
   - Grey subtitle paragraph
   - Full-width gold rule above footer
-  - Logo bottom-left (treadgold_signature_logo.png)
+  - Logo bottom-left (black pixels auto-converted to white)
   - URL bottom-right (treadgoldfinance.com.au)
 """
 
 import json
 import os
 import sys
+import urllib.request
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-# ---------- Brand constants (locked) ----------
-GOLD = (232, 184, 75)        # #E8B84B
-BLACK = (13, 13, 13)         # #0D0D0D
+# ---------- Brand ----------
+GOLD = (232, 184, 75)
+BLACK = (13, 13, 13)
 WHITE = (255, 255, 255)
-GREY = (138, 138, 138)       # #8A8A8A
+GREY = (138, 138, 138)
 URL_TEXT = "treadgoldfinance.com.au"
 LOGO_FILE = "treadgold_signature_logo.png"
 
-# ---------- Font discovery ----------
-FONT_BOLD_PATHS = [
-    "/usr/share/fonts/truetype/montserrat/Montserrat-Bold.ttf",
-    "/usr/share/fonts/truetype/montserrat/Montserrat-Bold.otf",
-    "/usr/share/fonts/opentype/montserrat/Montserrat-Bold.otf",
-    "/usr/share/fonts/truetype/montserrat/static/Montserrat-Bold.ttf",
-]
-FONT_REG_PATHS = [
-    "/usr/share/fonts/truetype/montserrat/Montserrat-Regular.ttf",
-    "/usr/share/fonts/truetype/montserrat/Montserrat-Regular.otf",
-    "/usr/share/fonts/opentype/montserrat/Montserrat-Regular.otf",
-    "/usr/share/fonts/truetype/montserrat/static/Montserrat-Regular.ttf",
-]
+# ---------- Fonts (downloaded at runtime from Google Fonts repo) ----------
+FONTS_DIR = Path("fonts")
+FONT_BLACK = FONTS_DIR / "Montserrat-Black.ttf"
+FONT_BOLD = FONTS_DIR / "Montserrat-Bold.ttf"
+FONT_REGULAR = FONTS_DIR / "Montserrat-Regular.ttf"
+
+FONT_URLS = {
+    FONT_BLACK: "https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Black.ttf",
+    FONT_BOLD: "https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Bold.ttf",
+    FONT_REGULAR: "https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Regular.ttf",
+}
+
 FALLBACK_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FALLBACK_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
@@ -53,11 +51,44 @@ except AttributeError:
     LANCZOS = Image.LANCZOS
 
 
-def find_font(paths, fallback, size):
-    for p in paths:
-        if os.path.exists(p):
-            return ImageFont.truetype(p, size)
+def ensure_fonts():
+    FONTS_DIR.mkdir(exist_ok=True)
+    for path, url in FONT_URLS.items():
+        if not path.exists():
+            print(f"Downloading {path.name}...")
+            try:
+                urllib.request.urlretrieve(url, path)
+                print(f"  Saved {path}")
+            except Exception as e:
+                print(f"  Failed to download {path.name}: {e}", file=sys.stderr)
+
+
+def safe_font(path, fallback, size):
+    path_str = str(path)
+    if os.path.exists(path_str):
+        try:
+            return ImageFont.truetype(path_str, size)
+        except Exception as e:
+            print(f"  Font {path_str} failed to load: {e}", file=sys.stderr)
     return ImageFont.truetype(fallback, size)
+
+
+def adapt_logo_for_dark_bg(logo):
+    """Replace black-ish pixels with white so light-bg logo works on dark bg.
+    Preserves gold and any other coloured pixels, plus alpha."""
+    if logo.mode != "RGBA":
+        logo = logo.convert("RGBA")
+    pixels = list(logo.getdata())
+    new_pixels = []
+    for r, g, b, a in pixels:
+        if a == 0:
+            new_pixels.append((r, g, b, a))
+        elif r < 70 and g < 70 and b < 70:
+            new_pixels.append((255, 255, 255, a))
+        else:
+            new_pixels.append((r, g, b, a))
+    logo.putdata(new_pixels)
+    return logo
 
 
 def wrap_text(draw, text, font, max_width):
@@ -67,8 +98,7 @@ def wrap_text(draw, text, font, max_width):
     for word in words:
         test = (current + " " + word).strip()
         bbox = draw.textbbox((0, 0), test, font=font)
-        width = bbox[2] - bbox[0]
-        if width <= max_width or not current:
+        if bbox[2] - bbox[0] <= max_width or not current:
             current = test
         else:
             lines.append(current)
@@ -82,108 +112,104 @@ def render_post(eyebrow, headline, subtitle, width, height):
     img = Image.new("RGB", (width, height), BLACK)
     draw = ImageDraw.Draw(img)
 
-    margin = int(min(width, height) * 0.06)
+    margin = int(width * 0.060)
 
-    # Gold bar top-left
-    bar_w = int(width * 0.08)
-    bar_h = max(6, int(height * 0.014))
+    # ---- Top: gold bar ----
+    bar_w = int(width * 0.045)
+    bar_h = max(4, int(height * 0.010))
     draw.rectangle([margin, margin, margin + bar_w, margin + bar_h], fill=GOLD)
 
-    # Eyebrow: gold rectangle with black caps text
-    eyebrow_text = eyebrow.upper()
-    eb_font_size = max(14, int(height * 0.028))
-    eb_font = find_font(FONT_BOLD_PATHS, FALLBACK_BOLD, eb_font_size)
-    eb_bbox = draw.textbbox((0, 0), eyebrow_text, font=eb_font)
-    eb_text_w = eb_bbox[2] - eb_bbox[0]
+    # ---- Eyebrow row: gold square + gold caps text + thin grey rule ----
+    sq_size = max(8, int(height * 0.022))
+    sq_y = margin + bar_h + int(height * 0.030)
+    draw.rectangle([margin, sq_y, margin + sq_size, sq_y + sq_size], fill=GOLD)
+
+    eb_size = max(14, int(height * 0.030))
+    eb_font = safe_font(FONT_BOLD, FALLBACK_BOLD, eb_size)
+    eb_text = eyebrow.upper()
+    eb_bbox = draw.textbbox((0, 0), eb_text, font=eb_font)
     eb_text_h = eb_bbox[3] - eb_bbox[1]
-    eb_pad_x = int(eb_font_size * 0.7)
-    eb_pad_y = int(eb_font_size * 0.5)
-    eb_x = margin
-    eb_y = margin + bar_h + int(height * 0.05)
-    eb_box_w = eb_text_w + 2 * eb_pad_x
-    eb_box_h = eb_text_h + 2 * eb_pad_y
-    draw.rectangle([eb_x, eb_y, eb_x + eb_box_w, eb_y + eb_box_h], fill=GOLD)
-    draw.text((eb_x + eb_pad_x - eb_bbox[0], eb_y + eb_pad_y - eb_bbox[1]),
-              eyebrow_text, font=eb_font, fill=BLACK)
+    eb_x = margin + sq_size + int(eb_size * 0.65)
+    # Vertically centre text baseline with square middle
+    eb_y = sq_y + (sq_size // 2) - (eb_text_h // 2) - eb_bbox[1]
+    draw.text((eb_x, eb_y), eb_text, font=eb_font, fill=GOLD)
 
-    # Grey divider under eyebrow
-    div_y = eb_y + eb_box_h + int(height * 0.035)
-    div_len = int(width * 0.10)
-    draw.line([margin, div_y, margin + div_len, div_y], fill=GREY, width=2)
+    eb_text_w = eb_bbox[2] - eb_bbox[0]
+    rule_start_x = eb_x + eb_text_w + int(eb_size * 1.0)
+    rule_y = sq_y + (sq_size // 2)
+    if rule_start_x < width - margin - 20:
+        draw.line([rule_start_x, rule_y, width - margin, rule_y], fill=GREY, width=1)
 
-    # Headline (huge all-caps white)
+    # ---- Headline (huge, Montserrat-Black, white) ----
     headline_text = headline.upper()
-    headline_size = max(28, int(height * 0.085))
-    headline_font = find_font(FONT_BOLD_PATHS, FALLBACK_BOLD, headline_size)
-    headline_y = div_y + int(height * 0.04)
+    headline_size = int(height * 0.150)
+    headline_font = safe_font(FONT_BLACK, FALLBACK_BOLD, headline_size)
+    headline_y = int(height * 0.20)
     max_w = width - 2 * margin
     lines = wrap_text(draw, headline_text, headline_font, max_w)
-    line_h = int(headline_size * 1.08)
+    line_h = int(headline_size * 1.00)
     for i, line in enumerate(lines):
         draw.text((margin, headline_y + i * line_h), line, font=headline_font, fill=WHITE)
     headline_bottom = headline_y + len(lines) * line_h
 
-    # Subtitle (grey)
+    # ---- Subtitle (grey) ----
     if subtitle:
-        sub_size = max(16, int(height * 0.030))
-        sub_font = find_font(FONT_REG_PATHS, FALLBACK_REG, sub_size)
-        sub_y = headline_bottom + int(height * 0.025)
+        sub_size = max(16, int(height * 0.032))
+        sub_font = safe_font(FONT_REGULAR, FALLBACK_REG, sub_size)
+        sub_y = headline_bottom + int(height * 0.020)
         sub_lines = wrap_text(draw, subtitle, sub_font, max_w)
-        sub_line_h = int(sub_size * 1.35)
+        sub_line_h = int(sub_size * 1.3)
         for i, line in enumerate(sub_lines):
             draw.text((margin, sub_y + i * sub_line_h), line, font=sub_font, fill=GREY)
 
-    # Full-width gold rule above footer
-    rule_y = height - int(height * 0.13)
-    draw.line([margin, rule_y, width - margin, rule_y], fill=GOLD, width=3)
+    # ---- Gold rule above footer ----
+    rule_y2 = height - int(height * 0.135)
+    draw.line([margin, rule_y2, width - margin, rule_y2], fill=GOLD, width=2)
 
-    # Logo bottom-left
+    # ---- Logo bottom-left (auto-adapted) ----
     if os.path.exists(LOGO_FILE):
         try:
             logo = Image.open(LOGO_FILE).convert("RGBA")
-            target_h = int(height * 0.07)
+            logo = adapt_logo_for_dark_bg(logo)
+            target_h = int(height * 0.080)
             ratio = target_h / logo.height
             target_w = int(logo.width * ratio)
             logo = logo.resize((target_w, target_h), LANCZOS)
-            img.paste(logo, (margin, height - int(height * 0.10)), logo)
+            img.paste(logo, (margin, height - int(height * 0.115)), logo)
         except Exception as e:
             print(f"  Warning: could not paste logo: {e}", file=sys.stderr)
 
-    # URL bottom-right
-    url_size = max(14, int(height * 0.025))
-    url_font = find_font(FONT_REG_PATHS, FALLBACK_REG, url_size)
+    # ---- URL bottom-right ----
+    url_size = max(14, int(height * 0.026))
+    url_font = safe_font(FONT_REGULAR, FALLBACK_REG, url_size)
     url_bbox = draw.textbbox((0, 0), URL_TEXT, font=url_font)
     url_w = url_bbox[2] - url_bbox[0]
-    draw.text((width - margin - url_w, height - int(height * 0.085)),
+    draw.text((width - margin - url_w, height - int(height * 0.083)),
               URL_TEXT, font=url_font, fill=GREY)
 
     return img
 
 
 def main():
+    ensure_fonts()
     config_path = Path("posts/current_week.json")
     if not config_path.exists():
-        print(f"No config at {config_path} \u2014 nothing to do.")
+        print(f"No config at {config_path}")
         return
-
     with open(config_path) as f:
         config = json.load(f)
-
     posts = config.get("posts", [])
     if not posts:
         print("Config has no posts.")
         return
-
     for post in posts:
         slug = post["slug"]
         eyebrow = post["eyebrow"]
         headline = post["headline"]
         subtitle = post.get("subtitle", "")
-
         landscape = render_post(eyebrow, headline, subtitle, 1200, 628)
         landscape.save(f"{slug}_landscape.png", "PNG")
         print(f"Generated {slug}_landscape.png")
-
         square = render_post(eyebrow, headline, subtitle, 1080, 1080)
         square.save(f"{slug}_square.png", "PNG")
         print(f"Generated {slug}_square.png")
