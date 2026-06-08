@@ -275,6 +275,22 @@ def main():
         build_image(1200, 628, eyebrow, headline, subline, f"{slug}_landscape.png")
         build_image(1080, 1080, eyebrow, headline, subline, f"{slug}_square.png")
 
+    # Also generate review cards if a reviews config exists.
+    # Kept in its own module (treadgold_review_card.py); this just invokes it
+    # so the existing CI workflow (which runs this script) produces them too.
+    reviews_path = Path("posts/reviews.json")
+    if reviews_path.exists():
+        try:
+            import treadgold_review_card as trc
+            with open(reviews_path) as rf:
+                rdata = json.load(rf)
+            for rv in rdata.get("reviews", []):
+                rslug = rv["slug"]
+                trc.build_review_card(1200, 628, rv["quote"], rv["name"], rv.get("context", ""), f"{rslug}_landscape.png")
+                trc.build_review_card(1080, 1080, rv["quote"], rv["name"], rv.get("context", ""), f"{rslug}_square.png")
+        except Exception as e:
+            print(f"Review-card generation skipped/failed: {e}")
+
 
 if __name__ == "__main__":
     main()
