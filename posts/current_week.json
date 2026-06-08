@@ -1,24 +1,24 @@
 {
-  "week": "2026-W23",
-  "_trigger": "2026-06-01T14:15Z",
+  "week": "2026-W24",
+  "_trigger": "2026-06-08T03:50Z",
   "posts": [
     {
-      "slug": "mon_eofy_ute",
-      "eyebrow": "EOFY 2026",
-      "headline": "\"I don't need a new ute\"",
-      "subtitle": "— Said no tradie in June, ever."
+      "slug": "mon_review_danielle",
+      "eyebrow": "5-STAR GOOGLE REVIEW",
+      "headline": "\"Works very fast to get us approved\"",
+      "subtitle": "\u2014 Natalie, on working with Danielle. Car loan, sorted."
     },
     {
-      "slug": "wed_solar",
-      "eyebrow": "SOLAR FINANCE",
-      "headline": "Is interest-free really free?",
-      "subtitle": "Three questions to ask before signing."
+      "slug": "wed_chattel_mortgage",
+      "eyebrow": "FOR ABN HOLDERS",
+      "headline": "Chattel mortgage, explained",
+      "subtitle": "GST, depreciation, balloon structure \u2014 what it means for your business. New on the blog."
     },
     {
-      "slug": "fri_local",
-      "eyebrow": "SUNSHINE COAST",
-      "headline": "Local finance broker, real people",
-      "subtitle": "Husband and wife, working with clients Australia-wide."
+      "slug": "fri_ring_banks",
+      "eyebrow": "BROKER HUMOUR",
+      "headline": "\"I'll just ring the banks myself\"",
+      "subtitle": "\u2014 14 phone calls and three credit hits later. One application, 40+ lenders."
     }
   ]
 }
