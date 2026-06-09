@@ -1,9 +1,21 @@
 {
   "reviews": [
     {
-      "slug": "natalie_danielle",
-      "quote": "She works very fast to make sure we get approved in a short amount of time. Definitely recommend to anyone wanting any finance.",
-      "name": "Natalie",
+      "slug": "mon_pete_snowball",
+      "quote": "Loan application approved and ready for processing within 6 hours of the initial phone call. Damien takes all the stress and pressure out of the process.",
+      "name": "Pete",
+      "context": "Vehicle finance with Damien"
+    },
+    {
+      "slug": "mon_marcus_whittaker",
+      "quote": "An absolute legend of a broker who went above and beyond every step of the way. Communication was unreal — always kept me updated and explained everything properly.",
+      "name": "Marcus",
+      "context": "Vehicle finance with Damien"
+    },
+    {
+      "slug": "mon_brett_tully",
+      "quote": "Danielle helped out so much with my car loan. If it wasn't for Danielle and the team at Treadgold, I don't think I would have gotten it. Highly recommend.",
+      "name": "Brett",
       "context": "Car loan with Danielle"
     }
   ]
