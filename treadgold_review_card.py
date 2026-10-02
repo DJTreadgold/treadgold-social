@@ -16,8 +16,8 @@ reviews.json schema:
   ]
 }
 
-Layout:
-  - Black background (#0D0D0D)
+Layout (curved split, adopted 2 Oct 2026):
+  - Bone field above a shallow arc, black field below, gold arc on the seam
   - Short gold bar top-left
   - Header row: Google "G" + 5 gold stars + "GOOGLE REVIEW" (gold) + grey divider
   - Large white quote (Montserrat-Bold, shrink-to-fit, opening/closing curly quotes)
@@ -92,83 +92,104 @@ def draw_google_g(size):
     return img
 
 
+# ---- Curved-split palette (adopted 2 Oct 2026) ----
+BONE = (244, 241, 234)       # light field, top
+INK = (20, 20, 18)           # quote text on bone
+GOLD_DEEP = (198, 150, 38)   # gold that holds contrast against BONE
+SS = 3                       # supersample factor for smooth curve edges
+
+
 def build_review_card(width, height, quote, name, context, outfile):
+    """Curved two-field card: bone above, black below, gold arc on the seam.
+
+    The quote block is vertically centred inside the bone field, so a short
+    review does not leave a hole at the bottom of it.
+    """
     is_square = abs(width - height) < 50
-    img = Image.new("RGB", (width, height), BLACK)
-    draw = ImageDraw.Draw(img)
     base = min(width, height)
-    pad_x = int(width * 0.07)
+    pad_x = int(width * 0.075)
 
-    bar_y = int(height * 0.07)
-    draw.rectangle([pad_x, bar_y, pad_x + int(base * 0.16), bar_y + int(base * 0.012)], fill=GOLD)
+    # ---- Two colour fields divided by a shallow arc -------------------
+    split = int(height * (0.655 if is_square else 0.620))
+    bulge = int(height * (0.085 if is_square else 0.110))
+    over = int(width * 0.35)
 
-    row_y = bar_y + int(base * 0.045)
-    g_size = int(base * 0.075)
+    big = Image.new("RGB", (width * SS, height * SS), BLACK)
+    bd = ImageDraw.Draw(big)
+    ell = [-over * SS, -height * SS, (width + over) * SS, (split + bulge) * SS]
+    bd.ellipse(ell, fill=BONE)
+    arc = [ell[0], ell[1] + 14 * SS, ell[2], ell[3] + 14 * SS]
+    bd.arc(arc, 0, 180, fill=GOLD, width=5 * SS)
+    img = big.resize((width, height), LANCZOS)
+    draw = ImageDraw.Draw(img)
+
+    # ---- Header: Google G + stars + label (all on bone) ---------------
+    head_y = int(height * 0.085)
+    g_size = int(base * 0.072)
     g_img = draw_google_g(g_size)
-    img.paste(g_img, (pad_x, row_y), g_img)
+    img.paste(g_img, (pad_x, head_y), g_img)
 
-    star_r = int(base * 0.028)
-    star_gap = int(star_r * 2.35)
-    stars_x = pad_x + g_size + int(base * 0.03) + star_r
-    stars_cy = row_y + g_size / 2
+    star_r = int(base * 0.027)
+    star_x = pad_x + g_size + int(base * 0.028) + star_r
+    star_cy = head_y + g_size / 2
     for i in range(5):
-        draw_star(draw, stars_x + i * star_gap, stars_cy, star_r, GOLD)
+        draw_star(draw, star_x + i * int(star_r * 2.35), star_cy, star_r, GOLD_DEEP)
 
-    label_size = max(15, int(base * 0.026))
-    f_label = font_bold(label_size)
-    label_text = "GOOGLE REVIEW"
-    label_x = stars_x - star_r
-    label_y = row_y + g_size + int(base * 0.018)
-    draw.text((label_x, label_y), label_text, font=f_label, fill=GOLD)
-    lw, _ = measure(draw, label_text, f_label)
-    div_y = label_y + label_size // 2
-    div_x0 = label_x + lw + int(base * 0.03)
-    draw.line([div_x0, div_y, width - pad_x, div_y], fill=GREY, width=1)
+    f_label = font_bold(max(14, int(base * 0.025)))
+    label_y = head_y + g_size + int(base * 0.020)
+    draw.text((pad_x, label_y), "GOOGLE REVIEW", font=f_label, fill=GOLD_DEEP)
+    label_bottom = label_y + int(base * 0.025)
 
-    quote_text = "\u201c" + quote.strip().strip('"') + "\u201d"
+    # ---- Quote, shrink-to-fit, centred in the remaining bone space ----
+    quote_text = "\u201c" + quote.strip().strip('"').strip("\u201c\u201d") + "\u201d"
     quote_max_w = width - 2 * pad_x
-    max_block_h = int(height * (0.46 if is_square else 0.42))
-    start_size = int(base * (0.072 if is_square else 0.085))
-    chosen = 24
-    qlines = [quote_text]
-    for size in range(start_size, 22, -2):
-        f_t = font_bold(size)
+    field_top = label_bottom + int(base * 0.035)
+    # the arc sits highest at the left and right edges, which is exactly where
+    # the text starts, so keep a generous gap rather than hugging the seam
+    field_bottom = split - int(height * 0.080)
+    max_block_h = field_bottom - field_top
+    start_size = int(base * (0.062 if is_square else 0.070))
+
+    chosen, qlines = 22, [quote_text]
+    for size in range(start_size, 20, -2):
+        f_t = font_black(size)
         tl = wrap_to_width(draw, quote_text, f_t, quote_max_w)
-        lh = int(size * 1.18)
-        if tl and len(tl) * lh <= max_block_h and max(measure(draw, ln, f_t)[0] for ln in tl) <= quote_max_w:
-            chosen = size
-            qlines = tl
+        lh = int(size * 1.17)
+        if tl and len(tl) * lh <= max_block_h and max(measure(draw, l, f_t)[0] for l in tl) <= quote_max_w:
+            chosen, qlines = size, tl
             break
-    f_q = font_bold(chosen)
-    qlh = int(chosen * 1.18)
-    quote_top = label_y + int(base * 0.07)
-    y = quote_top
+    f_q = font_black(chosen)
+    qlh = int(chosen * 1.17)
+    block_h = len(qlines) * qlh
+    y = field_top + max(0, (max_block_h - block_h) // 2)
     for ln in qlines:
-        draw.text((pad_x, y), ln, font=f_q, fill=WHITE)
+        draw.text((pad_x, y), ln, font=f_q, fill=INK)
         y += qlh
-    quote_bottom = y
 
-    attr_size = max(18, int(base * 0.034))
-    f_name = font_bold(attr_size)
-    f_ctx = font_regular(max(15, int(base * 0.026)))
-    attr_y = quote_bottom + int(base * 0.025)
-    draw.text((pad_x, attr_y), f"\u2014 {name}", font=f_name, fill=GOLD)
+    # ---- Attribution on the black field -------------------------------
+    attr_y = split + int(height * (0.075 if is_square else 0.095))
+    draw.rectangle(
+        [pad_x, attr_y, pad_x + int(base * 0.10), attr_y + max(4, int(base * 0.010))],
+        fill=GOLD,
+    )
+    attr_y += int(base * 0.038)
+    name_size = max(18, int(base * 0.040))
+    draw.text((pad_x, attr_y), name, font=font_bold(name_size), fill=WHITE)
     if context:
-        draw.text((pad_x, attr_y + int(attr_size * 1.35)), context, font=f_ctx, fill=GREY)
+        draw.text(
+            (pad_x, attr_y + int(name_size * 1.45)),
+            context, font=font_regular(max(15, int(base * 0.027))), fill=GREY,
+        )
 
-    rule_y = height - int(height * 0.135)
-    draw.line([pad_x, rule_y, width - pad_x, rule_y], fill=GOLD, width=2)
-
-    logo_h = int(height * 0.075)
+    # ---- Footer -------------------------------------------------------
+    logo_h = int(height * 0.072)
     logo = prepare_logo(logo_h, for_dark_bg=True)
     if logo is not None:
-        logo_y = height - logo.height - int(height * 0.045)
-        img.paste(logo, (pad_x, logo_y), logo)
+        img.paste(logo, (pad_x, height - logo.height - int(height * 0.050)), logo)
 
-    url_size = max(14, int(base * 0.022))
-    f_url = font_regular(url_size)
+    f_url = font_regular(max(14, int(base * 0.022)))
     uw, _ = measure(draw, URL_TEXT, f_url)
-    draw.text((width - pad_x - uw, height - int(height * 0.075)), URL_TEXT, font=f_url, fill=GREY)
+    draw.text((width - pad_x - uw, height - int(height * 0.078)), URL_TEXT, font=f_url, fill=GREY)
 
     img.save(outfile)
     print(f"Generated {outfile} ({width}x{height})")
