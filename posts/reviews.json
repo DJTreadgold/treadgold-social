@@ -4,21 +4,31 @@
       "slug": "mon_pete_snowball",
       "quote": "Loan application approved and ready for processing within 6 hours of the initial phone call. Damien takes all the stress and pressure out of the process.",
       "name": "Pete",
-      "context": "Vehicle finance with Damien"
+      "context": "Vehicle finance with Damien",
+      "posted": true,
+      "posted_date": "2026-06-09",
+      "source": "Google review, added manually"
     },
     {
       "slug": "mon_marcus_whittaker",
       "quote": "An absolute legend of a broker who went above and beyond every step of the way. Communication was unreal — always kept me updated and explained everything properly.",
       "name": "Marcus",
-      "context": "Vehicle finance with Damien"
+      "context": "Vehicle finance with Damien",
+      "posted": true,
+      "posted_date": "2026-06-09",
+      "source": "Google review, added manually"
     },
     {
       "slug": "mon_brett_tully",
       "quote": "Danielle helped out so much with my car loan. If it wasn't for Danielle and the team at Treadgold, I don't think I would have gotten it. Highly recommend.",
       "name": "Brett",
-      "context": "Car loan with Danielle"
+      "context": "Car loan with Danielle",
+      "posted": true,
+      "posted_date": "2026-06-09",
+      "source": "Google review, added manually"
     }
   ],
-  "_trigger": "2026-10-02T10:58Z",
-  "_layout": "curved-split v1 (2 Oct 2026)"
+  "_trigger": "2026-10-02T11:30Z",
+  "_layout": "curved-split v1 (2 Oct 2026)",
+  "_schema": "reviews[]: slug, quote, name, context, posted (bool), posted_date, source. Set posted=false for anything awaiting a post. The weekly review task picks the oldest posted=false entry, screens it for compliance, then flips it to true."
 }
