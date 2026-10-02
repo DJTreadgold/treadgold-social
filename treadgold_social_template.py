@@ -23,7 +23,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 # ---------- Brand ----------
-GOLD = (232, 184, 75)
+GOLD = (228, 181, 67)   # #E4B543, sampled from the logo file (Damo, 2 Oct 2026)
 BLACK = (13, 13, 13)
 WHITE = (255, 255, 255)
 GREY = (138, 138, 138)
